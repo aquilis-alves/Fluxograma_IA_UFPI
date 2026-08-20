@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorador Curricular - IA UFPI</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --card-bg: #ffffff;
+            --border-color: #dee2e6;
+            --selected-bg: #0d6efd;
+            --selected-text: #ffffff;
+            --prereq-bg: #ffca2c;
+            --prereq-border: #ffc720;
+            --dependent-bg: #198754;
+            --dependent-text: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            padding-bottom: 50px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #333;
+        }
+
+        p {
+            margin: 5px 0 0;
+            color: #666;
+        }
+
+        .legend-container {
+            max-width: 800px;
+            margin: 0 auto 20px auto;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-box {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        /* Grid de Semestres */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 15px;
+            max-width: 1400px;
+            margin: 0 auto;
+            overflow-x: auto;
+            padding-bottom: 20px;
+        }
+
+        .semester-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 150px;
+        }
+
+        .semester-title {
+            text-align: center;
+            font-weight: bold;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ccc;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        /* Disciplinas */
+        .subject {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 80px;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+        }
+
+        .subject:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-color: #adb5bd;
+        }
+
+        .subject-id {
+            font-size: 0.7rem;
+            color: inherit;
+            opacity: 0.7;
+            position: absolute;
+            top: 5px;
+            left: 5px;
+        }
+
+        .subject-name {
+            text-align: center;
+            font-weight: 600;
+            margin-top: 10px;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Estados de Seleção */
+        body.has-selection .subject {
+            opacity: 0.4;
+            /* Apaga os não selecionados */
+        }
+
+        body.has-selection .subject.selected,
+        body.has-selection .subject.prereq,
+        body.has-selection .subject.dependent {
+            opacity: 1;
+        }
+
+        .subject.selected {
+            background-color: var(--selected-bg);
+            color: var(--selected-text);
+            border-color: var(--selected-bg);
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+        }
+
+        .subject.prereq {
+            background-color: var(--prereq-bg);
+            color: #000;
+            border-color: var(--prereq-border);
+        }
+
+        .subject.dependent {
+            background-color: var(--dependent-bg);
+            color: var(--dependent-text);
+            border-color: var(--dependent-bg);
+        }
+
+        /* Modal de Optativas */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #888;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .optativa-list {
+            background: #f8f9fa;
+            border: 1px dashed #ccc;
+            padding: 15px 15px 15px 35px;
+            border-radius: 6px;
+            margin-top: 15px;
+            color: #666;
+        }
+
+        .disclaimer {
+            font-size: 0.85rem;
+            color: #dc3545;
+            background: #fff3cd;
+            padding: 10px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+
+        /* Créditos Discretos */
+        .credits {
+            position: fixed;
+            bottom: 5px;
+            right: 10px;
+            font-size: 11px;
+            color: #707070;
+            z-index: 100;
+            user-select: none;
+        }
+
+        .credits a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .credits a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-container {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .grid-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Explorador Curricular - IA</h1>
+        <p>UFPI - Clique em uma matéria para mapear sua trilha</p>
+    </header>
+
+    <div class="legend-container">
+        <div class="legend-item">
+            <div class="legend-box" style="background: var(--selected-bg);"></div> Disciplina Selecionada
+        </div>
+        <div class="legend-item">
+            <div class="legend-box" style="background: var(--prereq-bg);"></div> Pré-requisitos
+        </div>
+        <div class="legend-item">
+            <div class="legend-box" style="background: var(--dependent-bg);"></div> Libera
+        </div>
+    </div>
+
+    <div class="grid-container" id="grid">
+        <!-- Renderizado via JavaScript -->
+    </div>
+
+    <!-- Modal de Optativas -->
+    <div class="modal-overlay" id="optativaModal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2 style="margin-top: 0;">Disciplinas Optativas</h2>
+            <p>Nenhuma disciplina optativa foi cadastrada no sistema ainda.</p>
+
+            <div class="disclaimer">
+                <strong>Atenção:</strong> O cadastro mencionado aqui refere-se à adição de matérias neste
+                site/visualizador, e não ao sistema oficial acadêmico (SIGAA) da UFPI.
+            </div>
+
+            <p><strong>Lista de Optativas (Futuras):</strong></p>
+            <ul class="optativa-list">
+                <li><em>Aguardando atualização do sistema...</em></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="credits">
+        Desenvolvido por Aquilis Alves |
+        <a href="https://github.com/SEU_USUARIO/fluxograma_IA_ufpi" target="_blank">Código Fonte</a>
+    </div>
+
+    <script>
+        const subjectsData = [
+            // 1º Semestre
+            { id: '01', name: 'Inteligência Artificial', sem: 1, reqs: [] },
+            { id: '02', name: 'Programação Estruturada', sem: 1, reqs: [] },
+            { id: '03', name: 'Introdução à Lógica', sem: 1, reqs: [] },
+            { id: '04', name: 'Matemática Discreta', sem: 1, reqs: [] },
+            { id: '05', name: 'Cálculo Diferencial e Integral I', sem: 1, reqs: [] },
+            { id: '06', name: 'Inglês Técnico e Científico', sem: 1, reqs: [] },
+            { id: '07', name: 'Educ. Ambiental, Tecnol. e Sociedade', sem: 1, reqs: [] },
+
+            // 2º Semestre
+            { id: '08', name: 'Representação do Conhecimento', sem: 2, reqs: ['01'] },
+            { id: '44', name: 'Processamento de Linguagem Natural', sem: 2, reqs: [] },
+            { id: '10', name: 'Estruturas de Dados', sem: 2, reqs: ['02'] },
+            { id: '11', name: 'Programação Orient. a Objetos', sem: 2, reqs: ['02'] },
+            { id: '12', name: 'Cálculo Diferencial e Integral II', sem: 2, reqs: ['05'] },
+            { id: '13', name: 'Probabilidade e Estatística', sem: 2, reqs: ['05'] },
+            { id: '14', name: 'Atividade de Extensão I', sem: 2, reqs: [] },
+
+            // 3º Semestre
+            { id: '15', name: 'Fund. de Aprend. de Máquina', sem: 3, reqs: ['08'] },
+            { id: '16', name: 'Agentes Inteligentes', sem: 3, reqs: ['08'] },
+            { id: '17', name: 'Banco de Dados', sem: 3, reqs: ['10'] },
+            { id: '18', name: 'Teoria da Computação', sem: 3, reqs: ['10'] },
+            { id: '19', name: 'Álgebra Linear', sem: 3, reqs: ['12'] },
+            { id: '20', name: 'Informática e Sociedade', sem: 3, reqs: [] },
+            { id: '21', name: 'Atividade de Extensão II', sem: 3, reqs: ['14'] },
+
+            // 4º Semestre
+            { id: '22', name: 'Aprendizado Não Supervisionado', sem: 4, reqs: ['08'] },
+            { id: '23', name: 'Aprendizado Supervisionado', sem: 4, reqs: ['08'] },
+            { id: '24', name: 'Processamento Digital de Imagens', sem: 4, reqs: ['05', '11', '19'] },
+            { id: '25', name: 'Modelagem e Projeto de Software', sem: 4, reqs: ['11', '19'] },
+            { id: '26', name: 'Projeto e Análise de Algoritmos', sem: 4, reqs: ['18'] },
+            { id: '27', name: 'Ciência de Dados', sem: 4, reqs: ['17'] },
+            { id: '28', name: 'Atividade de Extensão III', sem: 4, reqs: ['21'] },
+
+            // 5º Semestre
+            { id: '29', name: 'Redes Neurais Artificiais', sem: 5, reqs: ['22', '23'] },
+            { id: '30', name: 'Visão Computacional', sem: 5, reqs: ['24'] },
+            { id: '31', name: 'Construção de Software', sem: 5, reqs: ['25'] },
+            { id: '32', name: 'Empreendedorismo', sem: 5, reqs: ['20'] },
+            { id: '33', name: 'Optativa', sem: 5, reqs: [], isOptativa: true },
+            { id: '34', name: 'Optativa', sem: 5, reqs: [], isOptativa: true },
+            { id: '35', name: 'Atividade de Extensão IV', sem: 5, reqs: ['28'] },
+
+            // 6º Semestre
+            { id: '36', name: 'Aprendizado Profundo', sem: 6, reqs: ['29'] },
+            { id: '37', name: 'Aprendizado por Reforço', sem: 6, reqs: ['29'] },
+            { id: '38', name: 'IA Embarcada', sem: 6, reqs: ['30'] },
+            { id: '39', name: 'Engenharia de Software em IA', sem: 6, reqs: ['31'] },
+            { id: '40', name: 'Introdução à Metod. Científica', sem: 6, reqs: [] },
+            { id: '41', name: 'Optativa', sem: 6, reqs: [], isOptativa: true },
+            { id: '42', name: 'Atividade de Extensão V', sem: 6, reqs: ['35'] },
+
+            // 7º Semestre
+            { id: '43', name: 'Trab. de Conclusão de Curso I', sem: 7, reqs: ['36', '38', '39'] },
+            { id: '09', name: 'Ética em IA', sem: 7, reqs: ['01'] },
+            { id: '45', name: 'Residência em IA I', sem: 7, reqs: [] },
+            { id: '46', name: 'Optativa', sem: 7, reqs: [], isOptativa: true },
+            { id: '47', name: 'Atividade de Extensão VI', sem: 7, reqs: ['42'] },
+
+            // 8º Semestre
+            { id: '48', name: 'Trab. de Conclusão de Curso II', sem: 8, reqs: ['43'] },
+            { id: '49', name: 'Residência em IA II', sem: 8, reqs: ['45'] },
+            { id: '50', name: 'Optativa', sem: 8, reqs: [], isOptativa: true },
+            { id: '51', name: 'Optativa', sem: 8, reqs: [], isOptativa: true }
+        ];
+
+        let currentSelectedId = null;
+
+        function init() {
+            const grid = document.getElementById('grid');
+
+            for (let i = 1; i <= 8; i++) {
+                const col = document.createElement('div');
+                col.className = 'semester-col';
+
+                const title = document.createElement('div');
+                title.className = 'semester-title';
+                title.innerText = `${i}º Semestre`;
+                col.appendChild(title);
+
+                const subjects = subjectsData.filter(s => s.sem === i);
+                subjects.forEach(sub => {
+                    const el = document.createElement('div');
+                    el.className = 'subject';
+                    el.id = `sub-${sub.id}`;
+                    el.innerHTML = `
+                        <span class="subject-id">${sub.id}</span>
+                        <div class="subject-name">${sub.name}</div>
+                    `;
+                    el.onclick = () => handleSubjectClick(sub);
+                    col.appendChild(el);
+                });
+
+                grid.appendChild(col);
+            }
+        }
+
+        function handleSubjectClick(sub) {
+            // Se for optativa, abre o modal e ignora lógicas de seleção
+            if (sub.isOptativa) {
+                document.getElementById('optativaModal').style.display = 'flex';
+                return;
+            }
+
+            // Se clicou na que já estava selecionada, limpa tudo
+            if (currentSelectedId === sub.id) {
+                clearSelection();
+                return;
+            }
+
+            // Seleção de nova matéria (limpa as antigas e aplica novas regras)
+            clearSelection();
+            currentSelectedId = sub.id;
+
+            document.body.classList.add('has-selection');
+            document.getElementById(`sub-${sub.id}`).classList.add('selected');
+
+            // Busca e pinta a trilha inteira (recursivo)
+            const prereqs = getPrereqsRecursively(sub.id);
+            prereqs.forEach(id => {
+                const el = document.getElementById(`sub-${id}`);
+                if (el) el.classList.add('prereq');
+            });
+
+            const dependents = getDependentsRecursively(sub.id);
+            dependents.forEach(id => {
+                const el = document.getElementById(`sub-${id}`);
+                if (el) el.classList.add('dependent');
+            });
+        }
+
+        // Encontra todas as matérias que vêm ANTES (pré-requisitos em cascata)
+        function getPrereqsRecursively(id, visited = new Set()) {
+            let reqs = [];
+            const sub = subjectsData.find(s => s.id === id);
+
+            if (sub && sub.reqs) {
+                sub.reqs.forEach(reqId => {
+                    if (!visited.has(reqId)) {
+                        visited.add(reqId);
+                        reqs.push(reqId);
+                        reqs = reqs.concat(getPrereqsRecursively(reqId, visited));
+                    }
+                });
+            }
+            return reqs;
+        }
+
+        // Encontra todas as matérias que vêm DEPOIS (o que ela libera em cascata)
+        function getDependentsRecursively(id, visited = new Set()) {
+            let deps = [];
+
+            subjectsData.forEach(sub => {
+                if (sub.reqs && sub.reqs.includes(id)) {
+                    if (!visited.has(sub.id)) {
+                        visited.add(sub.id);
+                        deps.push(sub.id);
+                        deps = deps.concat(getDependentsRecursively(sub.id, visited));
+                    }
+                }
+            });
+            return deps;
+        }
+
+        function clearSelection() {
+            currentSelectedId = null;
+            document.body.classList.remove('has-selection');
+            document.querySelectorAll('.subject').forEach(el => {
+                el.classList.remove('selected', 'prereq', 'dependent');
+            });
+        }
+
+        function closeModal(e) {
+            document.getElementById('optativaModal').style.display = 'none';
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
