@@ -8,6 +8,8 @@ Este projeto consiste em uma única página web (HTML/CSS/JS) que apresenta uma 
 
 O objetivo principal é ajudar os alunos a mapearem sua trilha no curso, entendendo facilmente a cadeia de dependências de cada disciplina.
 
+acesse o site em: https://aquilis-alves.github.io/Fluxograma_IA_UFPI/
+
 ### Funcionalidades
 
 - **Visualização Completa**: Grade curricular completa de 1º a 8º semestre.
